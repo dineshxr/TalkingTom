@@ -1,5 +1,5 @@
 import React from 'react';
-import { Mic, MicOff, Volume2, VolumeX, Settings, Heart } from 'lucide-react';
+import { Mic, MicOff, Volume2, VolumeX, Settings, Heart, Hand } from 'lucide-react';
 import { ConversationState } from '../types';
 
 interface VoiceControlsProps {
@@ -9,6 +9,7 @@ interface VoiceControlsProps {
   onStartRecording: () => void;
   onStopRecording: () => void;
   onToggleSettings: () => void;
+  onPoke?: () => void;
 }
 
 export const VoiceControls: React.FC<VoiceControlsProps> = ({
@@ -17,7 +18,8 @@ export const VoiceControls: React.FC<VoiceControlsProps> = ({
   volume,
   onStartRecording,
   onStopRecording,
-  onToggleSettings
+  onToggleSettings,
+  onPoke
 }) => {
   const getButtonColor = () => {
     switch (state) {
@@ -162,6 +164,15 @@ export const VoiceControls: React.FC<VoiceControlsProps> = ({
           title="Volume Control"
         >
           <Volume2 className="w-6 h-6 text-gray-600 group-hover:text-gray-800 transition-colors duration-200" />
+        </button>
+
+        {/* Poke Button */}
+        <button
+          onClick={onPoke}
+          className="group p-4 rounded-full bg-gradient-to-br from-yellow-100 to-orange-200 hover:from-yellow-200 hover:to-orange-300 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
+          title="Poke the kitty!"
+        >
+          <Hand className="w-6 h-6 text-orange-600 group-hover:text-orange-800 transition-colors duration-200" />
         </button>
 
         <button

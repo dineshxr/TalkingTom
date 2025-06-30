@@ -20,6 +20,7 @@ function App() {
     pitch: 1.0,
     volume: 0.8
   });
+  const [pokeReaction, setPokeReaction] = useState<string>('');
 
   const {
     isRecording,
@@ -127,6 +128,47 @@ function App() {
     }
   }, [speechSupported, stopListening, stopRecording]);
 
+  const handlePoke = useCallback(async () => {
+    const pokeResponses = [
+      "Meow! 😸 That tickles!",
+      "Purr purr! 🐱 I love attention!",
+      "Mrow! 😺 You're so playful!",
+      "Nya! 🙀 That surprised me!",
+      "Meow meow! 😻 More pets please!",
+      "Purr! 😽 You found my tickle spot!",
+      "Mew! 🐾 I'm feeling frisky now!",
+      "Meow! 😸 You're making me happy!"
+    ];
+
+    const randomResponse = pokeResponses[Math.floor(Math.random() * pokeResponses.length)];
+    setPokeReaction(randomResponse);
+
+    // Add poke message to chat
+    const pokeMessage: ChatMessage = {
+      id: Date.now().toString(),
+      text: randomResponse,
+      isUser: false,
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, pokeMessage]);
+    setConversationState('speaking');
+
+    // Speak the poke response
+    try {
+      await ttsService.speak(randomResponse, voiceSettings);
+    } catch (error) {
+      console.error('Error speaking poke response:', error);
+    }
+    
+    setConversationState('idle');
+
+    // Clear poke reaction after animation
+    setTimeout(() => {
+      setPokeReaction('');
+    }, 2000);
+  }, [voiceSettings]);
+
   if (!apiKey) {
     return <ApiKeyInput onApiKeySubmit={setApiKey} />;
   }
@@ -146,8 +188,17 @@ function App() {
 
         <div className="grid lg:grid-cols-2 gap-8 items-start">
           {/* 3D Character */}
-          <div className="bg-white rounded-3xl shadow-xl p-6 h-96">
-            <Character3D state={conversationState} volume={volume} />
+          <div className="bg-white rounded-3xl shadow-xl p-6 h-96 relative">
+            <Character3D 
+              state={conversationState} 
+              volume={volume} 
+              onPoke={handlePoke}
+              pokeReaction={pokeReaction}
+            />
+            {/* Click to poke hint */}
+            <div className="absolute top-4 right-4 bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-medium">
+              👆 Click to poke!
+            </div>
           </div>
 
           {/* Chat Interface */}
@@ -167,6 +218,7 @@ function App() {
                 onStartRecording={handleStartRecording}
                 onStopRecording={handleStopRecording}
                 onToggleSettings={() => setShowSettings(true)}
+                onPoke={handlePoke}
               />
             </div>
           </div>
@@ -176,6 +228,13 @@ function App() {
         {(transcript || isListening) && (
           <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-6 py-3 rounded-full shadow-lg">
             {transcript || "Listening..."}
+          </div>
+        )}
+
+        {/* Poke reaction display */}
+        {pokeReaction && (
+          <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-yellow-400 text-yellow-900 px-6 py-3 rounded-full shadow-lg animate-bounce">
+            {pokeReaction}
           </div>
         )}
 

@@ -8,6 +8,8 @@ import * as THREE from 'three';
 interface Character3DProps {
   state: ConversationState;
   volume?: number;
+  onPoke?: () => void;
+  pokeReaction?: string;
 }
 
 function FloatingParticles({ state, volume }: { state: ConversationState; volume: number }) {
@@ -259,7 +261,17 @@ function FloatingOrbs({ state, volume }: { state: ConversationState; volume: num
   );
 }
 
-function CatCharacter({ state, volume = 0 }: { state: ConversationState; volume: number }) {
+function CatCharacter({ 
+  state, 
+  volume = 0, 
+  onPoke, 
+  pokeReaction 
+}: { 
+  state: ConversationState; 
+  volume: number;
+  onPoke?: () => void;
+  pokeReaction?: string;
+}) {
   const groupRef = useRef<Group>(null);
   const headRef = useRef<Mesh>(null);
   const leftEyeRef = useRef<Mesh>(null);
@@ -270,164 +282,214 @@ function CatCharacter({ state, volume = 0 }: { state: ConversationState; volume:
   const tailRef = useRef<Mesh>(null);
   const whiskerGroupRef = useRef<Group>(null);
   const bodyRef = useRef<Mesh>(null);
+  
+  // Poke reaction state
+  const pokeAnimationRef = useRef<number>(0);
+  const lastPokeTimeRef = useRef<number>(0);
 
   useFrame((frameState, delta) => {
     if (!groupRef.current) return;
 
     const time = frameState.clock.elapsedTime;
 
-    // Base idle animations
-    if (groupRef.current) {
-      groupRef.current.position.y = Math.sin(time * 1.5) * 0.05;
-    }
+    // Handle poke animation
+    if (pokeReaction && time - lastPokeTimeRef.current < 2) {
+      pokeAnimationRef.current = Math.max(0, pokeAnimationRef.current - delta * 2);
+      
+      // Poke reaction animations
+      if (groupRef.current) {
+        const bounceIntensity = pokeAnimationRef.current;
+        groupRef.current.position.y = Math.sin(time * 15) * 0.2 * bounceIntensity;
+        groupRef.current.rotation.z = Math.sin(time * 10) * 0.1 * bounceIntensity;
+      }
+      
+      // Eyes get bigger during poke
+      if (leftEyeRef.current && rightEyeRef.current) {
+        const eyeScale = 1 + pokeAnimationRef.current * 0.5;
+        leftEyeRef.current.scale.setScalar(eyeScale);
+        rightEyeRef.current.scale.setScalar(eyeScale);
+      }
+      
+      // Ears perk up
+      if (leftEarRef.current && rightEarRef.current) {
+        leftEarRef.current.rotation.x = -0.5 * pokeAnimationRef.current;
+        rightEarRef.current.rotation.x = -0.5 * pokeAnimationRef.current;
+      }
+      
+      // Tail goes crazy
+      if (tailRef.current) {
+        tailRef.current.rotation.z = Math.sin(time * 20) * 0.8 * pokeAnimationRef.current;
+      }
+    } else {
+      // Normal animations when not being poked
+      
+      // Base idle animations
+      if (groupRef.current) {
+        groupRef.current.position.y = Math.sin(time * 1.5) * 0.05;
+      }
 
-    // Tail animation (always active)
-    if (tailRef.current) {
-      tailRef.current.rotation.z = Math.sin(time * 2) * 0.3;
-      tailRef.current.rotation.x = Math.sin(time * 1.5) * 0.2;
-    }
+      // Tail animation (always active)
+      if (tailRef.current) {
+        tailRef.current.rotation.z = Math.sin(time * 2) * 0.3;
+        tailRef.current.rotation.x = Math.sin(time * 1.5) * 0.2;
+      }
 
-    // Whiskers subtle movement
-    if (whiskerGroupRef.current) {
-      whiskerGroupRef.current.rotation.z = Math.sin(time * 3) * 0.02;
-    }
+      // Whiskers subtle movement
+      if (whiskerGroupRef.current) {
+        whiskerGroupRef.current.rotation.z = Math.sin(time * 3) * 0.02;
+      }
 
-    // State-specific animations
-    switch (state) {
-      case 'idle':
-        // Gentle breathing
-        if (bodyRef.current) {
-          bodyRef.current.scale.y = 1 + Math.sin(time * 2) * 0.02;
-        }
-        // Occasional blink
-        if (leftEyeRef.current && rightEyeRef.current) {
-          const blinkTime = Math.sin(time * 0.5);
-          if (blinkTime > 0.95) {
-            leftEyeRef.current.scale.y = 0.1;
-            rightEyeRef.current.scale.y = 0.1;
-          } else {
-            leftEyeRef.current.scale.y = 1;
-            rightEyeRef.current.scale.y = 1;
+      // State-specific animations
+      switch (state) {
+        case 'idle':
+          // Gentle breathing
+          if (bodyRef.current) {
+            bodyRef.current.scale.y = 1 + Math.sin(time * 2) * 0.02;
           }
-        }
-        // Ears twitch occasionally
-        if (leftEarRef.current && rightEarRef.current) {
-          const twitchTime = Math.sin(time * 0.3);
-          if (twitchTime > 0.9) {
-            leftEarRef.current.rotation.z = 0.2;
-            rightEarRef.current.rotation.z = -0.2;
-          } else {
-            leftEarRef.current.rotation.z = 0;
-            rightEarRef.current.rotation.z = 0;
+          // Occasional blink
+          if (leftEyeRef.current && rightEyeRef.current) {
+            const blinkTime = Math.sin(time * 0.5);
+            if (blinkTime > 0.95) {
+              leftEyeRef.current.scale.y = 0.1;
+              rightEyeRef.current.scale.y = 0.1;
+            } else {
+              leftEyeRef.current.scale.y = 1;
+              rightEyeRef.current.scale.y = 1;
+            }
           }
-        }
-        break;
-
-      case 'listening':
-        // Alert posture - ears perked up
-        if (leftEarRef.current && rightEarRef.current) {
-          leftEarRef.current.rotation.x = -0.3;
-          rightEarRef.current.rotation.x = -0.3;
-          leftEarRef.current.position.y = 0.9;
-          rightEarRef.current.position.y = 0.9;
-        }
-        // Wide eyes
-        if (leftEyeRef.current && rightEyeRef.current) {
-          leftEyeRef.current.scale.setScalar(1.2);
-          rightEyeRef.current.scale.setScalar(1.2);
-        }
-        // Head tilts with volume
-        if (headRef.current) {
-          headRef.current.rotation.z = Math.sin(time * 8) * volume * 0.1;
-          headRef.current.scale.setScalar(1 + volume * 0.05);
-        }
-        // Body leans forward slightly
-        if (groupRef.current) {
-          groupRef.current.rotation.x = -0.1;
-        }
-        break;
-
-      case 'thinking':
-        // Thoughtful expression - one ear down
-        if (leftEarRef.current && rightEarRef.current) {
-          leftEarRef.current.rotation.x = 0.2;
-          rightEarRef.current.rotation.x = -0.1;
-        }
-        // Eyes look up and blink slowly
-        if (leftEyeRef.current && rightEyeRef.current) {
-          leftEyeRef.current.position.y = 0.75;
-          rightEyeRef.current.position.y = 0.75;
-          const slowBlink = Math.sin(time * 1.5);
-          if (slowBlink > 0.7) {
-            leftEyeRef.current.scale.y = 0.3;
-            rightEyeRef.current.scale.y = 0.3;
-          } else {
-            leftEyeRef.current.scale.y = 1;
-            rightEyeRef.current.scale.y = 1;
+          // Ears twitch occasionally
+          if (leftEarRef.current && rightEarRef.current) {
+            const twitchTime = Math.sin(time * 0.3);
+            if (twitchTime > 0.9) {
+              leftEarRef.current.rotation.z = 0.2;
+              rightEarRef.current.rotation.z = -0.2;
+            } else {
+              leftEarRef.current.rotation.z = 0;
+              rightEarRef.current.rotation.z = 0;
+            }
           }
-        }
-        // Head tilts side to side
-        if (headRef.current) {
-          headRef.current.rotation.z = Math.sin(time * 1.2) * 0.15;
-        }
-        // Tail curls up (thinking pose)
-        if (tailRef.current) {
-          tailRef.current.rotation.z = Math.sin(time * 1) * 0.5 + 0.8;
-        }
-        break;
+          break;
 
-      case 'speaking':
-        // Happy expression - ears up and forward
-        if (leftEarRef.current && rightEarRef.current) {
-          leftEarRef.current.rotation.x = -0.2;
-          rightEarRef.current.rotation.x = -0.2;
-          leftEarRef.current.rotation.z = 0.1;
-          rightEarRef.current.rotation.z = -0.1;
-        }
-        // Animated mouth for lip sync
-        if (mouthRef.current) {
-          const mouthAnimation = Math.sin(time * 12) * 0.5 + 0.5;
-          mouthRef.current.scale.y = 0.3 + mouthAnimation * 0.7;
-          mouthRef.current.scale.x = 1.2 - mouthAnimation * 0.3;
-        }
-        // Eyes squint slightly (happy expression)
-        if (leftEyeRef.current && rightEyeRef.current) {
-          leftEyeRef.current.scale.y = 0.8;
-          rightEyeRef.current.scale.y = 0.8;
-        }
-        // Head bobs gently
-        if (headRef.current) {
-          headRef.current.position.y = Math.sin(time * 6) * 0.05;
-        }
-        // Tail wags happily
-        if (tailRef.current) {
-          tailRef.current.rotation.z = Math.sin(time * 8) * 0.6;
-        }
-        // Whiskers move more
-        if (whiskerGroupRef.current) {
-          whiskerGroupRef.current.rotation.z = Math.sin(time * 6) * 0.05;
-        }
-        break;
+        case 'listening':
+          // Alert posture - ears perked up
+          if (leftEarRef.current && rightEarRef.current) {
+            leftEarRef.current.rotation.x = -0.3;
+            rightEarRef.current.rotation.x = -0.3;
+            leftEarRef.current.position.y = 0.9;
+            rightEarRef.current.position.y = 0.9;
+          }
+          // Wide eyes
+          if (leftEyeRef.current && rightEyeRef.current) {
+            leftEyeRef.current.scale.setScalar(1.2);
+            rightEyeRef.current.scale.setScalar(1.2);
+          }
+          // Head tilts with volume
+          if (headRef.current) {
+            headRef.current.rotation.z = Math.sin(time * 8) * volume * 0.1;
+            headRef.current.scale.setScalar(1 + volume * 0.05);
+          }
+          // Body leans forward slightly
+          if (groupRef.current) {
+            groupRef.current.rotation.x = -0.1;
+          }
+          break;
 
-      case 'processing':
-        // Confused/processing - ears at different angles
-        if (leftEarRef.current && rightEarRef.current) {
-          leftEarRef.current.rotation.z = Math.sin(time * 3) * 0.2;
-          rightEarRef.current.rotation.z = Math.sin(time * 3 + Math.PI) * 0.2;
-        }
-        // Eyes dart around
-        if (leftEyeRef.current && rightEyeRef.current) {
-          const eyeMovement = Math.sin(time * 4) * 0.1;
-          leftEyeRef.current.position.x = -0.3 + eyeMovement;
-          rightEyeRef.current.position.x = 0.3 + eyeMovement;
-        }
-        // Head shakes slightly
-        if (headRef.current) {
-          headRef.current.rotation.y = Math.sin(time * 5) * 0.1;
-        }
-        break;
+        case 'thinking':
+          // Thoughtful expression - one ear down
+          if (leftEarRef.current && rightEarRef.current) {
+            leftEarRef.current.rotation.x = 0.2;
+            rightEarRef.current.rotation.x = -0.1;
+          }
+          // Eyes look up and blink slowly
+          if (leftEyeRef.current && rightEyeRef.current) {
+            leftEyeRef.current.position.y = 0.75;
+            rightEyeRef.current.position.y = 0.75;
+            const slowBlink = Math.sin(time * 1.5);
+            if (slowBlink > 0.7) {
+              leftEyeRef.current.scale.y = 0.3;
+              rightEyeRef.current.scale.y = 0.3;
+            } else {
+              leftEyeRef.current.scale.y = 1;
+              rightEyeRef.current.scale.y = 1;
+            }
+          }
+          // Head tilts side to side
+          if (headRef.current) {
+            headRef.current.rotation.z = Math.sin(time * 1.2) * 0.15;
+          }
+          // Tail curls up (thinking pose)
+          if (tailRef.current) {
+            tailRef.current.rotation.z = Math.sin(time * 1) * 0.5 + 0.8;
+          }
+          break;
+
+        case 'speaking':
+          // Happy expression - ears up and forward
+          if (leftEarRef.current && rightEarRef.current) {
+            leftEarRef.current.rotation.x = -0.2;
+            rightEarRef.current.rotation.x = -0.2;
+            leftEarRef.current.rotation.z = 0.1;
+            rightEarRef.current.rotation.z = -0.1;
+          }
+          // Animated mouth for lip sync
+          if (mouthRef.current) {
+            const mouthAnimation = Math.sin(time * 12) * 0.5 + 0.5;
+            mouthRef.current.scale.y = 0.3 + mouthAnimation * 0.7;
+            mouthRef.current.scale.x = 1.2 - mouthAnimation * 0.3;
+          }
+          // Eyes squint slightly (happy expression)
+          if (leftEyeRef.current && rightEyeRef.current) {
+            leftEyeRef.current.scale.y = 0.8;
+            rightEyeRef.current.scale.y = 0.8;
+          }
+          // Head bobs gently
+          if (headRef.current) {
+            headRef.current.position.y = Math.sin(time * 6) * 0.05;
+          }
+          // Tail wags happily
+          if (tailRef.current) {
+            tailRef.current.rotation.z = Math.sin(time * 8) * 0.6;
+          }
+          // Whiskers move more
+          if (whiskerGroupRef.current) {
+            whiskerGroupRef.current.rotation.z = Math.sin(time * 6) * 0.05;
+          }
+          break;
+
+        case 'processing':
+          // Confused/processing - ears at different angles
+          if (leftEarRef.current && rightEarRef.current) {
+            leftEarRef.current.rotation.z = Math.sin(time * 3) * 0.2;
+            rightEarRef.current.rotation.z = Math.sin(time * 3 + Math.PI) * 0.2;
+          }
+          // Eyes dart around
+          if (leftEyeRef.current && rightEyeRef.current) {
+            const eyeMovement = Math.sin(time * 4) * 0.1;
+            leftEyeRef.current.position.x = -0.3 + eyeMovement;
+            rightEyeRef.current.position.x = 0.3 + eyeMovement;
+          }
+          // Head shakes slightly
+          if (headRef.current) {
+            headRef.current.rotation.y = Math.sin(time * 5) * 0.1;
+          }
+          break;
+      }
     }
   });
+
+  // Handle poke trigger
+  useEffect(() => {
+    if (pokeReaction) {
+      pokeAnimationRef.current = 1;
+      lastPokeTimeRef.current = performance.now() / 1000;
+    }
+  }, [pokeReaction]);
+
+  const handleClick = () => {
+    if (onPoke) {
+      onPoke();
+    }
+  };
 
   const getMainColor = () => {
     switch (state) {
@@ -450,7 +512,13 @@ function CatCharacter({ state, volume = 0 }: { state: ConversationState; volume:
   };
 
   return (
-    <group ref={groupRef} castShadow receiveShadow>
+    <group 
+      ref={groupRef} 
+      castShadow 
+      receiveShadow
+      onClick={handleClick}
+      style={{ cursor: 'pointer' }}
+    >
       {/* Head */}
       <Sphere ref={headRef} args={[1, 32, 32]} position={[0, 0.5, 0]} castShadow>
         <meshPhongMaterial color={getMainColor()} />
@@ -595,7 +663,12 @@ function EnvironmentEffects({ state }: { state: ConversationState }) {
   );
 }
 
-export const Character3D: React.FC<Character3DProps> = ({ state, volume = 0 }) => {
+export const Character3D: React.FC<Character3DProps> = ({ 
+  state, 
+  volume = 0, 
+  onPoke, 
+  pokeReaction 
+}) => {
   return (
     <div className="w-full h-full">
       <Canvas 
@@ -608,7 +681,12 @@ export const Character3D: React.FC<Character3DProps> = ({ state, volume = 0 }) =
         <FloatingParticles state={state} volume={volume} />
         <FloatingOrbs state={state} volume={volume} />
         <InteractiveGround state={state} />
-        <CatCharacter state={state} volume={volume} />
+        <CatCharacter 
+          state={state} 
+          volume={volume} 
+          onPoke={onPoke}
+          pokeReaction={pokeReaction}
+        />
         <OrbitControls 
           enablePan={false} 
           enableZoom={true}
